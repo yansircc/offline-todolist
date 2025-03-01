@@ -306,6 +306,18 @@ export const useTodoStore = create<TodoStore>()(
 
           // Stage (H1)
           if (trimmedLine.startsWith('# ')) {
+            // Save previous subtask if exists
+            if (currentSubTask && currentTask) {
+              currentTask.subTasks.push(currentSubTask)
+              currentSubTask = null
+            }
+            
+            // Save previous task if exists
+            if (currentTask && currentStage) {
+              currentStage.tasks.push(currentTask)
+              currentTask = null
+            }
+            
             // Save previous stage if exists
             if (currentStage) {
               stages.push(currentStage)
@@ -324,6 +336,12 @@ export const useTodoStore = create<TodoStore>()(
           }
           // Task (H2)
           else if (trimmedLine.startsWith('## ') && currentStage) {
+            // Save previous subtask if exists
+            if (currentSubTask && currentTask) {
+              currentTask.subTasks.push(currentSubTask)
+              currentSubTask = null
+            }
+            
             // Save previous task if exists
             if (currentTask) {
               currentStage.tasks.push(currentTask)
