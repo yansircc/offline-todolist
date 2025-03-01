@@ -102,6 +102,36 @@ export async function getAllGroupData(): Promise<GroupData[]> {
   }
 }
 
+// Reset all group data (admin only)
+export async function resetAllGroupData(): Promise<boolean> {
+  try {
+    const config = await getGroupConfig()
+    
+    // Reset all groups
+    for (let i = 1; i <= config.totalGroups; i++) {
+      const groupKey = `group:${i}`
+      const maxSize = config.groupSizes[i.toString()] ?? 0
+      
+      // Create empty group data
+      const emptyGroupData: GroupData = {
+        groupId: i,
+        completionPercentage: 0,
+        members: [],
+        maxSize,
+        lastUpdated: new Date().toISOString()
+      }
+      
+      // Save empty group data
+      await redis.set(groupKey, emptyGroupData)
+    }
+    
+    return true
+  } catch (error) {
+    console.error('Error resetting all group data:', error)
+    return false
+  }
+}
+
 // Update group data with a new member or update existing member
 export async function updateGroupMember(
   groupId: number, 
@@ -132,6 +162,24 @@ export async function updateGroupMember(
     const existingMemberIndex = groupData.members.findIndex(
       member => member.nickname === nickname
     )
+    
+    // Check for task structure consistency
+    if (groupData.members.length > 0 && existingMemberIndex === -1) {
+      // This is a new member being added to an existing group
+      const firstMember = groupData.members[0]
+      if (firstMember) {
+        const existingMemberTotalTasks = firstMember.totalTasks
+        const existingMemberTotalSubtasks = firstMember.totalSubtasks
+        
+        if (totalTasks !== existingMemberTotalTasks || totalSubtasks !== existingMemberTotalSubtasks) {
+          console.warn(
+            `Task structure inconsistency detected in Group ${groupId}. ` +
+            `New member "${nickname}" has ${totalTasks} tasks and ${totalSubtasks} subtasks, ` +
+            `while existing members have ${existingMemberTotalTasks} tasks and ${existingMemberTotalSubtasks} subtasks.`
+          )
+        }
+      }
+    }
     
     if (existingMemberIndex >= 0) {
       // Update existing member
