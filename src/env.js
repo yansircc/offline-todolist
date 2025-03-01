@@ -11,8 +11,8 @@ export const env = createEnv({
     KV_URL: z.string(),
     KV_REST_API_READ_ONLY_TOKEN: z.string(),
     KV_REST_API_TOKEN: z.string(),
-    KV_REST_API_URL: z.string(),  
-  },
+    KV_REST_API_URL: z.string(),
+    },
 
   /**
    * Specify your client-side environment variables schema here. This way you can ensure the app

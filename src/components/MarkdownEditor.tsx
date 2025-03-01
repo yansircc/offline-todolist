@@ -1,11 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { useTodoStore } from '@/lib/store'
+import { Save } from 'lucide-react'
+import { useEffect, useState } from 'react'
+
+interface TaskUpdateResponse {
+  success: boolean
+  message?: string
+  error?: string
+}
 
 export function MarkdownEditor() {
-  const { markdownContent, setMarkdownContent, parseMarkdownContent } = useTodoStore()
+  const { markdownContent, setMarkdownContent, parseMarkdownContent, stages } = useTodoStore()
   const [localContent, setLocalContent] = useState(markdownContent)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle')
 
   // Initialize with example content if empty
   useEffect(() => {
@@ -67,9 +76,51 @@ Upload your application to the server.`
     setLocalContent(e.target.value)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    // Update local state
     setMarkdownContent(localContent)
     parseMarkdownContent()
+    
+    // Save to Redis
+    try {
+      setIsSaving(true)
+      setSaveStatus('idle')
+      
+      // Wait a moment for parseMarkdownContent to update the stages
+      setTimeout(() => {
+        void (async () => {
+          const response = await fetch('/api/tasks/update', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              stages,
+            }),
+          })
+          
+          const data = await response.json() as TaskUpdateResponse
+          
+          if (data.success) {
+            setSaveStatus('success')
+          } else {
+            setSaveStatus('error')
+            console.error('Failed to save task structure:', data.error)
+          }
+          
+          setIsSaving(false)
+          
+          // Reset status after 3 seconds
+          setTimeout(() => {
+            setSaveStatus('idle')
+          }, 3000)
+        })()
+      }, 100)
+    } catch (error) {
+      console.error('Error saving task structure:', error)
+      setSaveStatus('error')
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -98,12 +149,27 @@ Upload your application to the server.`
         placeholder="Enter your markdown here..."
       />
 
-      <div className="mt-4 flex justify-end">
+      <div className="mt-4 flex justify-between items-center">
+        <div>
+          {saveStatus === 'success' && (
+            <span className="text-green-600 text-sm">
+              ✓ Tasks saved to server successfully
+            </span>
+          )}
+          {saveStatus === 'error' && (
+            <span className="text-red-600 text-sm">
+              ✗ Failed to save tasks to server
+            </span>
+          )}
+        </div>
+        
         <button
           onClick={handleSave}
-          className="rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
+          disabled={isSaving}
+          className="rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50 flex items-center"
         >
-          Save and Parse
+          <Save className="h-4 w-4 mr-2" />
+          {isSaving ? 'Saving...' : 'Save and Publish'}
         </button>
       </div>
     </div>

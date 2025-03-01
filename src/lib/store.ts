@@ -23,14 +23,28 @@ export interface Stage {
   tasks: Task[]
 }
 
+export interface UserInfo {
+  nickname: string
+  groupId: number
+  isRegistered: boolean
+}
+
 interface TodoStore {
   stages: Stage[]
   isAdmin: boolean
   markdownContent: string
+  userInfo: UserInfo
+  lastSyncTime: string | null
 
-  // Actions
+  // User actions
+  setUserInfo: (userInfo: Partial<UserInfo>) => void
+  resetUserInfo: () => void
+  setLastSyncTime: (time: string) => void
+
+  // Admin actions
   setIsAdmin: (isAdmin: boolean) => void
   setMarkdownContent: (content: string) => void
+  setStages: (stages: Stage[]) => void
   addStage: (stage: Stage) => void
   updateStage: (stageId: string, updates: Partial<Omit<Stage, 'id' | 'tasks'>>) => void
   deleteStage: (stageId: string) => void
@@ -56,6 +70,12 @@ interface TodoStore {
 
   // Parse markdown to update stages, tasks, and subtasks
   parseMarkdownContent: () => void
+
+  // Get completion statistics
+  getCompletionStats: () => { completedTasks: number; totalTasks: number }
+
+  // Reset all data
+  resetAllData: () => void
 }
 
 // Helper function to generate UUID
@@ -73,10 +93,34 @@ export const useTodoStore = create<TodoStore>()(
       stages: [],
       isAdmin: false,
       markdownContent: '',
+      userInfo: {
+        nickname: '',
+        groupId: 0,
+        isRegistered: false
+      },
+      lastSyncTime: null,
+
+      setUserInfo: (userInfo) => set((state) => ({
+        userInfo: { ...state.userInfo, ...userInfo }
+      })),
+
+      resetUserInfo: () => set({
+        userInfo: {
+          nickname: '',
+          groupId: 0,
+          isRegistered: false
+        }
+      }),
+
+      setLastSyncTime: (time) => set({
+        lastSyncTime: time
+      }),
 
       setIsAdmin: (isAdmin) => set({ isAdmin }),
 
       setMarkdownContent: (content) => set({ markdownContent: content }),
+      
+      setStages: (stages) => set({ stages }),
 
       addStage: (stage) =>
         set((state) => ({
@@ -330,11 +374,45 @@ export const useTodoStore = create<TodoStore>()(
 
         set({ stages })
       },
+
+      getCompletionStats: () => {
+        const { stages } = get()
+        let completedTasks = 0
+        let totalTasks = 0
+
+        stages.forEach(stage => {
+          stage.tasks.forEach(task => {
+            if (task.completed) {
+              completedTasks++
+            }
+            totalTasks++
+          })
+        })
+
+        return { completedTasks, totalTasks }
+      },
+
+      resetAllData: () => set({
+        stages: [],
+        isAdmin: false,
+        markdownContent: '',
+        userInfo: {
+          nickname: '',
+          groupId: 0,
+          isRegistered: false
+        },
+        lastSyncTime: null
+      })
     }),
     {
       name: 'todo-storage',
-      // Only persist the stages and isAdmin state
-      partialize: (state) => ({ stages: state.stages, isAdmin: state.isAdmin }),
+      // Persist all state except markdownContent
+      partialize: (state) => ({ 
+        stages: state.stages, 
+        isAdmin: state.isAdmin,
+        userInfo: state.userInfo,
+        lastSyncTime: state.lastSyncTime
+      }),
     },
   ),
 )
