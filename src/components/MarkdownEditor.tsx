@@ -77,49 +77,48 @@ Upload your application to the server.`
   }
 
   const handleSave = async () => {
-    // Update local state
-    setMarkdownContent(localContent)
-    parseMarkdownContent()
-    
-    // Save to Redis
     try {
       setIsSaving(true)
       setSaveStatus('idle')
       
-      // Wait a moment for parseMarkdownContent to update the stages
-      setTimeout(() => {
-        void (async () => {
-          const response = await fetch('/api/tasks/update', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              stages,
-            }),
-          })
-          
-          const data = await response.json() as TaskUpdateResponse
-          
-          if (data.success) {
-            setSaveStatus('success')
-          } else {
-            setSaveStatus('error')
-            console.error('Failed to save task structure:', data.error)
-          }
-          
-          setIsSaving(false)
-          
-          // Reset status after 3 seconds
-          setTimeout(() => {
-            setSaveStatus('idle')
-          }, 3000)
-        })()
-      }, 100)
+      // Update local state
+      setMarkdownContent(localContent)
+      
+      // Parse markdown content
+      parseMarkdownContent()
+      
+      // Get the latest stages after parsing
+      const latestStages = useTodoStore.getState().stages
+      
+      // Save to Redis
+      const response = await fetch('/api/tasks/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          stages: latestStages,
+        }),
+      })
+      
+      const data = await response.json() as TaskUpdateResponse
+      
+      if (data.success) {
+        setSaveStatus('success')
+      } else {
+        setSaveStatus('error')
+        console.error('Failed to save task structure:', data.error)
+      }
     } catch (error) {
       console.error('Error saving task structure:', error)
       setSaveStatus('error')
+    } finally {
       setIsSaving(false)
+      
+      // Reset status after 3 seconds
+      setTimeout(() => {
+        setSaveStatus('idle')
+      }, 3000)
     }
   }
 
