@@ -1,5 +1,6 @@
 'use client'
 
+import { GroupConfig } from '@/components/GroupConfig'
 import { GroupLeaderboardContainer } from '@/components/GroupLeaderboard'
 import { MarkdownEditor } from '@/components/MarkdownEditor'
 import { Stage } from '@/components/Stage'
@@ -8,13 +9,66 @@ import { UserProfile } from '@/components/UserProfile'
 import { UserRegistration } from '@/components/UserRegistration'
 import { useTodoStore, type Stage as StageType } from '@/lib/store'
 import { checkIsAdmin } from '@/lib/utils'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 interface TaskApiResponse {
   success: boolean
   stages: StageType[]
   lastUpdated: string | null
   error?: string
+}
+
+interface SyncResponse {
+  success: boolean
+  message?: string
+  error?: string
+}
+
+// Helper function to merge task completion states
+function mergeTaskCompletionStates(
+  serverStages: StageType[],
+  localStages: StageType[]
+): StageType[] {
+  // If no local stages, just return server stages
+  if (localStages.length === 0) return serverStages
+  
+  return serverStages.map(serverStage => {
+    // Find matching stage in local stages
+    const localStage = localStages.find(ls => ls.id === serverStage.id)
+    if (!localStage) return serverStage
+    
+    // Merge tasks
+    const mergedTasks = serverStage.tasks.map(serverTask => {
+      // Find matching task in local stage
+      const localTask = localStage.tasks.find(lt => lt.id === serverTask.id)
+      if (!localTask) return serverTask
+      
+      // Merge subtasks
+      const mergedSubTasks = serverTask.subTasks.map(serverSubTask => {
+        // Find matching subtask in local task
+        const localSubTask = localTask.subTasks.find(lst => lst.id === serverSubTask.id)
+        if (!localSubTask) return serverSubTask
+        
+        // Keep local completion state
+        return {
+          ...serverSubTask,
+          completed: localSubTask.completed
+        }
+      })
+      
+      // Keep local completion state and merged subtasks
+      return {
+        ...serverTask,
+        completed: localTask.completed,
+        subTasks: mergedSubTasks
+      }
+    })
+    
+    return {
+      ...serverStage,
+      tasks: mergedTasks
+    }
+  })
 }
 
 export function TodoList() {
@@ -25,12 +79,75 @@ export function TodoList() {
     setIsAdmin,
     toggleTaskCompletion, 
     toggleSubTaskCompletion,
-    parseMarkdownContent
+    parseMarkdownContent,
+    getSubtaskCompletionStats,
+    setLastSyncTime
   } = useTodoStore()
   
   const [isLoadingTasks, setIsLoadingTasks] = useState(false)
   const [taskError, setTaskError] = useState<string | null>(null)
-  const { isRegistered } = userInfo
+  const [isSyncing, setIsSyncing] = useState(false)
+  const { isRegistered, nickname, groupId } = userInfo
+  
+  // Function to sync progress with the server
+  const syncProgressToServer = useCallback(async () => {
+    if (!isRegistered || !nickname || !groupId) return
+    
+    try {
+      setIsSyncing(true)
+      
+      const { completedTasks, totalTasks, completedSubtasks, totalSubtasks } = getSubtaskCompletionStats()
+      
+      const response = await fetch('/api/groups/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          groupId,
+          nickname,
+          completedTasks,
+          totalTasks,
+          completedSubtasks,
+          totalSubtasks
+        }),
+      })
+      
+      const data = await response.json() as SyncResponse
+      
+      if (data.success) {
+        setLastSyncTime(new Date().toISOString())
+      }
+    } catch (error) {
+      console.error('Error syncing progress:', error)
+    } finally {
+      setIsSyncing(false)
+    }
+  }, [isRegistered, nickname, groupId, getSubtaskCompletionStats, setLastSyncTime])
+  
+  // Wrapper for toggleSubTaskCompletion that also syncs progress
+  const handleToggleSubTaskCompletion = useCallback((stageId: string, taskId: string, subTaskId: string) => {
+    toggleSubTaskCompletion(stageId, taskId, subTaskId)
+    
+    // Sync progress after a short delay to ensure state is updated
+    if (isRegistered && !isAdmin) {
+      setTimeout(() => {
+        void syncProgressToServer()
+      }, 300)
+    }
+  }, [toggleSubTaskCompletion, syncProgressToServer, isRegistered, isAdmin])
+  
+  // Wrapper for toggleTaskCompletion that also syncs progress
+  const handleToggleTaskCompletion = useCallback((stageId: string, taskId: string) => {
+    toggleTaskCompletion(stageId, taskId)
+    
+    // Sync progress after a short delay to ensure state is updated
+    if (isRegistered && !isAdmin) {
+      setTimeout(() => {
+        void syncProgressToServer()
+      }, 300)
+    }
+  }, [toggleTaskCompletion, syncProgressToServer, isRegistered, isAdmin])
   
   // Check if user is admin on component mount
   useEffect(() => {
@@ -43,8 +160,8 @@ export function TodoList() {
   
   // Fetch task structure from server for non-admin users
   useEffect(() => {
-    // Skip for admin users or if stages already exist
-    if (isAdmin || stages.length > 0) return
+    // Skip for admin users
+    if (isAdmin) return
     
     const fetchTaskStructure = async () => {
       try {
@@ -55,9 +172,15 @@ export function TodoList() {
         const data = await response.json() as TaskApiResponse
         
         if (data.success && data.stages.length > 0) {
-          // Update the store with the fetched stages
+          // Get current stages from store
+          const currentStages = useTodoStore.getState().stages
+          
+          // Merge server stages with local completion states
+          const mergedStages = mergeTaskCompletionStates(data.stages, currentStages)
+          
+          // Update the store with the merged stages
           const { setStages } = useTodoStore.getState()
-          setStages(data.stages)
+          setStages(mergedStages)
         } else if (data.success && data.stages.length === 0) {
           // No tasks available yet
           setTaskError('No tasks available yet. Please check back later.')
@@ -73,7 +196,7 @@ export function TodoList() {
     }
     
     void fetchTaskStructure()
-  }, [isAdmin, stages.length])
+  }, [isAdmin])
   
   return (
     <div className="max-w-7xl mx-auto">
@@ -111,6 +234,11 @@ export function TodoList() {
             <SyncProgress />
           )}
           
+          {/* Admin Group Configuration */}
+          {isAdmin && (
+            <GroupConfig />
+          )}
+          
           {/* Admin Markdown Editor */}
           {isAdmin && (
             <div className="mb-8">
@@ -132,8 +260,8 @@ export function TodoList() {
                 <Stage
                   key={stage.id}
                   stage={stage}
-                  onToggleTaskCompletion={toggleTaskCompletion}
-                  onToggleSubTaskCompletion={toggleSubTaskCompletion}
+                  onToggleTaskCompletion={handleToggleTaskCompletion}
+                  onToggleSubTaskCompletion={handleToggleSubTaskCompletion}
                 />
               ))}
             </div>
@@ -161,7 +289,7 @@ export function TodoList() {
         </div>
         
         {/* Right column - Sticky leaderboard */}
-        {isRegistered && !isAdmin && (
+        {(isRegistered || isAdmin) && (
           <div className="md:w-80 lg:w-96">
             <div className="md:sticky md:top-6">
               <GroupLeaderboardContainer />

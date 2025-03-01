@@ -8,15 +8,31 @@ interface UpdateGroupRequest {
   nickname: string
   completedTasks: number
   totalTasks: number
+  completedSubtasks: number
+  totalSubtasks: number
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as UpdateGroupRequest
-    const { groupId, nickname, completedTasks, totalTasks } = body
+    const { 
+      groupId, 
+      nickname, 
+      completedTasks, 
+      totalTasks,
+      completedSubtasks,
+      totalSubtasks
+    } = body
     
     // Validate input
-    if (!groupId || !nickname || completedTasks === undefined || totalTasks === undefined) {
+    if (
+      !groupId || 
+      !nickname || 
+      completedTasks === undefined || 
+      totalTasks === undefined ||
+      completedSubtasks === undefined ||
+      totalSubtasks === undefined
+    ) {
       return NextResponse.json(
         {
           success: false,
@@ -27,11 +43,11 @@ export async function POST(request: NextRequest) {
     }
     
     // Validate group ID
-    if (groupId < 1 || groupId > 10) {
+    if (groupId < 1 || groupId > 100) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Group ID must be between 1 and 10'
+          error: 'Group ID must be between 1 and 100'
         },
         { status: 400 }
       )
@@ -42,7 +58,9 @@ export async function POST(request: NextRequest) {
       Number(groupId), 
       String(nickname), 
       Number(completedTasks), 
-      Number(totalTasks)
+      Number(totalTasks),
+      Number(completedSubtasks),
+      Number(totalSubtasks)
     )
     
     if (success) {

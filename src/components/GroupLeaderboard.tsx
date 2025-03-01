@@ -2,8 +2,8 @@
 
 import { type GroupData } from '@/lib/redis'
 import { useTodoStore } from '@/lib/store'
-import { Clock, Medal, Trophy } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Clock, Medal, Trophy, Users } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
 
 interface GroupLeaderboardProps {
   groupData: GroupData[]
@@ -64,9 +64,14 @@ export function GroupLeaderboard({ groupData, isLoading, lastUpdated }: GroupLea
                   </div>
                   <div>
                     <h3 className="font-medium">Group {group.groupId}</h3>
-                    <p className="text-sm text-gray-500">
-                      {group.members.length} {group.members.length === 1 ? 'member' : 'members'}
-                    </p>
+                    <div className="flex items-center text-sm text-gray-500">
+                      <Users className="h-3.5 w-3.5 mr-1" />
+                      <span>
+                        {group.members.length} 
+                        {group.maxSize > 0 ? ` / ${group.maxSize}` : ''} 
+                        {group.members.length === 1 ? ' member' : ' members'}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <div className="text-right">
@@ -78,6 +83,12 @@ export function GroupLeaderboard({ groupData, isLoading, lastUpdated }: GroupLea
                     ></div>
                   </div>
                 </div>
+              </div>
+              
+              {/* Show subtask completion details */}
+              <div className="mt-2 text-xs text-gray-500 border-t border-gray-100 pt-2">
+                {group.members.reduce((sum, member) => sum + member.completedSubtasks, 0)} of {' '}
+                {group.members.reduce((sum, member) => sum + member.totalSubtasks, 0)} subtasks completed
               </div>
             </div>
           ))}
@@ -93,7 +104,7 @@ export function GroupLeaderboardContainer() {
   const [isLoading, setIsLoading] = useState(true)
   const { lastSyncTime, setLastSyncTime } = useTodoStore()
   
-  const fetchGroupData = async () => {
+  const fetchGroupData = useCallback(async () => {
     try {
       setIsLoading(true)
       const response = await fetch('/api/groups')
@@ -108,7 +119,7 @@ export function GroupLeaderboardContainer() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [setLastSyncTime])
   
   // Fetch data on mount and every 2 minutes
   useEffect(() => {
@@ -119,7 +130,7 @@ export function GroupLeaderboardContainer() {
     }, 2 * 60 * 1000) // 2 minutes
     
     return () => clearInterval(interval)
-  }, [])
+  }, [fetchGroupData])
   
   return <GroupLeaderboard groupData={groupData} isLoading={isLoading} lastUpdated={lastSyncTime} />
 } 

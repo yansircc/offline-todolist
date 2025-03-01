@@ -2,7 +2,7 @@
 
 import { useTodoStore } from '@/lib/store'
 import { RefreshCw } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 interface SyncResponse {
   success: boolean
@@ -11,7 +11,7 @@ interface SyncResponse {
 }
 
 export function SyncProgress() {
-  const { userInfo, getCompletionStats, lastSyncTime, setLastSyncTime } = useTodoStore()
+  const { userInfo, getSubtaskCompletionStats, lastSyncTime, setLastSyncTime } = useTodoStore()
   const [isSyncing, setIsSyncing] = useState(false)
   const [syncError, setSyncError] = useState<string | null>(null)
   const [syncSuccess, setSyncSuccess] = useState(false)
@@ -23,7 +23,7 @@ export function SyncProgress() {
     ? new Date(lastSyncTime).toLocaleString() 
     : 'Never'
   
-  const syncProgress = async () => {
+  const syncProgress = useCallback(async () => {
     if (!isRegistered || !nickname || !groupId) {
       setSyncError('You must register before syncing progress')
       return
@@ -34,7 +34,7 @@ export function SyncProgress() {
       setSyncError(null)
       setSyncSuccess(false)
       
-      const { completedTasks, totalTasks } = getCompletionStats()
+      const { completedTasks, totalTasks, completedSubtasks, totalSubtasks } = getSubtaskCompletionStats()
       
       const response = await fetch('/api/groups/update', {
         method: 'POST',
@@ -46,6 +46,8 @@ export function SyncProgress() {
           nickname,
           completedTasks,
           totalTasks,
+          completedSubtasks,
+          totalSubtasks
         }),
       })
       
@@ -68,7 +70,7 @@ export function SyncProgress() {
     } finally {
       setIsSyncing(false)
     }
-  }
+  }, [isRegistered, nickname, groupId, getSubtaskCompletionStats, setLastSyncTime])
   
   // Auto-sync progress every 5 minutes if user is registered
   useEffect(() => {
@@ -79,7 +81,7 @@ export function SyncProgress() {
     }, 5 * 60 * 1000) // 5 minutes
     
     return () => clearInterval(syncInterval)
-  }, [isRegistered])
+  }, [isRegistered, syncProgress])
   
   if (!isRegistered) return null
   

@@ -73,6 +73,14 @@ interface TodoStore {
 
   // Get completion statistics
   getCompletionStats: () => { completedTasks: number; totalTasks: number }
+  
+  // Get subtask completion statistics
+  getSubtaskCompletionStats: () => { 
+    completedTasks: number
+    totalTasks: number
+    completedSubtasks: number
+    totalSubtasks: number
+  }
 
   // Reset all data
   resetAllData: () => void
@@ -390,6 +398,37 @@ export const useTodoStore = create<TodoStore>()(
         })
 
         return { completedTasks, totalTasks }
+      },
+      
+      getSubtaskCompletionStats: () => {
+        const { stages } = get()
+        let completedTasks = 0
+        let totalTasks = 0
+        let completedSubtasks = 0
+        let totalSubtasks = 0
+
+        stages.forEach(stage => {
+          stage.tasks.forEach(task => {
+            if (task.completed) {
+              completedTasks++
+            }
+            totalTasks++
+            
+            task.subTasks.forEach(subTask => {
+              if (subTask.completed) {
+                completedSubtasks++
+              }
+              totalSubtasks++
+            })
+          })
+        })
+
+        return { 
+          completedTasks, 
+          totalTasks,
+          completedSubtasks,
+          totalSubtasks
+        }
       },
 
       resetAllData: () => set({
