@@ -1,5 +1,5 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from 'clsx'
+import { twMerge } from 'tailwind-merge'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -10,8 +10,8 @@ export function cn(...inputs: ClassValue[]) {
  * Returns true if the 'user' parameter is set to 'admin'
  */
 export function checkIsAdmin(): boolean {
-  if (typeof window === 'undefined') return false;
-  
-  const urlParams = new URLSearchParams(window.location.search);
-  return urlParams.get('user') === 'admin';
+  if (typeof window === 'undefined') return false
+
+  const urlParams = new URLSearchParams(window.location.search)
+  return urlParams.get('user') === 'admin'
 }

@@ -1,5 +1,5 @@
-import { createEnv } from "@t3-oss/env-nextjs";
-import { z } from "zod";
+import { createEnv } from '@t3-oss/env-nextjs'
+import { z } from 'zod'
 
 export const env = createEnv({
   /**
@@ -7,7 +7,11 @@ export const env = createEnv({
    * isn't built with invalid env vars.
    */
   server: {
-    NODE_ENV: z.enum(["development", "test", "production"]),
+    NODE_ENV: z.enum(['development', 'test', 'production']),
+    KV_URL: z.string(),
+    KV_REST_API_READ_ONLY_TOKEN: z.string(),
+    KV_REST_API_TOKEN: z.string(),
+    KV_REST_API_URL: z.string(),  
   },
 
   /**
@@ -25,6 +29,10 @@ export const env = createEnv({
    */
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
+    KV_URL: process.env.KV_URL,
+    KV_REST_API_READ_ONLY_TOKEN: process.env.KV_REST_API_READ_ONLY_TOKEN,
+    KV_REST_API_TOKEN: process.env.KV_REST_API_TOKEN,
+    KV_REST_API_URL: process.env.KV_REST_API_URL,
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
   },
   /**
@@ -37,4 +45,4 @@ export const env = createEnv({
    * `SOME_VAR=''` will throw an error.
    */
   emptyStringAsUndefined: true,
-});
+})

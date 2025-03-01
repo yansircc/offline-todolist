@@ -1,12 +1,12 @@
-"use client"
+'use client'
 
-import { useState, useEffect } from "react"
-import { useTodoStore } from "@/lib/store"
+import { useEffect, useState } from 'react'
+import { useTodoStore } from '@/lib/store'
 
 export function MarkdownEditor() {
   const { markdownContent, setMarkdownContent, parseMarkdownContent } = useTodoStore()
   const [localContent, setLocalContent] = useState(markdownContent)
-  
+
   // Initialize with example content if empty
   useEffect(() => {
     if (!localContent) {
@@ -56,50 +56,56 @@ Prepare your application for deployment.
 Create a production build.
 
 ## Deploy to Server
-Upload your application to the server.`;
-      
-      setLocalContent(exampleContent);
-      setMarkdownContent(exampleContent);
+Upload your application to the server.`
+
+      setLocalContent(exampleContent)
+      setMarkdownContent(exampleContent)
     }
-  }, [localContent, setMarkdownContent]);
-  
+  }, [localContent, setMarkdownContent])
+
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setLocalContent(e.target.value);
-  };
-  
+    setLocalContent(e.target.value)
+  }
+
   const handleSave = () => {
-    setMarkdownContent(localContent);
-    parseMarkdownContent();
-  };
-  
+    setMarkdownContent(localContent)
+    parseMarkdownContent()
+  }
+
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-      <h2 className="text-xl font-bold mb-4">Markdown Editor</h2>
-      <p className="text-gray-600 mb-4">
-        Use Markdown to define your todo list structure:
-        <ul className="list-disc pl-5 mt-2">
-          <li><code># Heading 1</code> - Stage</li>
-          <li><code>## Heading 2</code> - Task</li>
-          <li><code>### Heading 3</code> - Subtask</li>
+    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+      <h2 className="mb-4 text-xl font-bold">Markdown Editor</h2>
+      <div className="mb-4 text-gray-600">
+        <p className="mb-2">Use Markdown to define your todo list structure:</p>
+        <ul className="list-disc pl-5">
+          <li>
+            <code># Heading 1</code> - Stage
+          </li>
+          <li>
+            <code>## Heading 2</code> - Task
+          </li>
+          <li>
+            <code>### Heading 3</code> - Subtask
+          </li>
           <li>Regular text - Description for the item above</li>
         </ul>
-      </p>
-      
+      </div>
+
       <textarea
         value={localContent}
         onChange={handleChange}
-        className="w-full h-96 p-4 border border-gray-300 rounded-md font-mono text-sm"
+        className="h-96 w-full rounded-md border border-gray-300 p-4 font-mono text-sm"
         placeholder="Enter your markdown here..."
       />
-      
+
       <div className="mt-4 flex justify-end">
         <button
           onClick={handleSave}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          className="rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
         >
           Save and Parse
         </button>
       </div>
     </div>
   )
-} 
+}
